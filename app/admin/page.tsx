@@ -327,9 +327,9 @@ export default function AdminDashboard() {
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <header className="h-14 border-b border-zinc-800/60 bg-[#080810]/90 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-10 shrink-0">
         <div className="flex items-center gap-3">
-          <img src="/logo-pemkab-banyuwangi.png" alt="Logo Pemkab Banyuwangi" className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-sm" />
+          <img src="/logo-pemkot.png" alt="Pemkot Logo" className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-sm" />
           <div>
-            <h1 className="text-sm font-semibold text-zinc-100 leading-tight">chatbot-perijinan — AI Coach</h1>
+            <h1 className="text-sm font-semibold text-zinc-100 leading-tight">PBG Assist — AI Coach</h1>
             <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-medium">Knowledge Base Inbox</p>
           </div>
         </div>

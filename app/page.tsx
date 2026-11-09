@@ -361,11 +361,11 @@ function EmptyState({ onSuggest }: { onSuggest: (q: string) => void }) {
     <div className="flex flex-col items-center justify-center h-full gap-5 px-6 text-center relative">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-purple-500/10 rounded-full blur-[80px] pointer-events-none" />
       <div className="flex items-center justify-center relative z-10">
-        <img src="/logo-pemkab-banyuwangi.png" alt="Logo Pemkab Banyuwangi" className="h-24 w-auto object-contain drop-shadow-xl" />
+        <img src="/logo-pemkot.png" alt="Pemkot Logo" className="h-24 w-auto object-contain drop-shadow-xl" />
       </div>
       <div className="relative z-10">
         <h2 className="text-3xl font-extrabold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-500 drop-shadow-sm">
-          chatbot-perijinan siap membantu
+          PBG Assist siap membantu
         </h2>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", maxWidth: "380px" }}>
           Tanyakan apa saja mengenai proses pengajuan Persetujuan Bangunan
@@ -851,10 +851,10 @@ export default function ChatPage() {
       >
         {/* Left: Logo + Title */}
         <div className="flex items-center gap-3">
-          <img src="/logo-pemkab-banyuwangi.png" alt="Logo Pemkab Banyuwangi" className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-sm" />
+          <img src="/logo-pemkot.png" alt="Pemkot Logo" className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-sm" />
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>
-              chatbot-perijinan
+              PBG Customer Support
             </span>
           </div>
 
@@ -1163,7 +1163,7 @@ export default function ChatPage() {
             </button>
           </form>
           <p className="text-center mt-2" style={{ fontSize: "0.65rem", color: "var(--text-secondary)" }}>
-            chatbot-perijinan dapat membuat kesalahan. Selalu verifikasi informasi penting dengan instansi terkait.
+            PBG Assist dapat membuat kesalahan. Selalu verifikasi informasi penting dengan instansi terkait.
           </p>
         </div>
       </div>

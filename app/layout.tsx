@@ -3,13 +3,13 @@ import "./globals.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "chatbot-perijinan",
+  title: "PBG Assist — Customer Support",
   description:
-    "Asisten cerdas berbasis AI untuk layanan Persetujuan Bangunan Gedung (PBG) dan perizinan. Dapatkan informasi cepat, akurat, dan terpercaya mengenai proses pengajuan izin.",
-  keywords: ["chatbot-perijinan", "PBG", "Persetujuan Bangunan Gedung", "SIMBG", "izin bangunan", "chatbot AI"],
+    "Asisten cerdas berbasis AI untuk layanan Persetujuan Bangunan Gedung (PBG). Dapatkan informasi cepat, akurat, dan terpercaya mengenai proses pengajuan izin bangunan.",
+  keywords: ["PBG", "Persetujuan Bangunan Gedung", "SIMBG", "izin bangunan", "chatbot AI"],
   openGraph: {
-    title: "chatbot-perijinan",
-    description: "AI-powered assistant for government building permit (PBG) and licensing inquiries.",
+    title: "PBG Assist — Customer Support",
+    description: "AI-powered assistant for government building permit (PBG) inquiries.",
     type: "website",
   },
 };

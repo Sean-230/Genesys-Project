@@ -53,8 +53,8 @@ logger = logging.getLogger(__name__)
 # FastAPI App + CORS
 # ──────────────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="chatbot-perijinan — AI Backend",
-    description="FastAPI backend powering the chatbot-perijinan.",
+    title="PBG Assist — AI Backend",
+    description="FastAPI backend powering the PBG Customer Support chatbot.",
     version="0.1.0",
 )
 
@@ -242,8 +242,8 @@ async def intercept_and_log(user_query: str, ai_response: str, golden_chunk_used
     )
 
     # ── Scenario 4 signals — OOT / refusal / apology
-    # Catches variations like "Mohon maaf, sebagai chatbot-perijinan..."
-    #                      and "Mohon maaf, saya adalah chatbot-perijinan..."
+    # Catches variations like "Mohon maaf, sebagai PBG Assist..."
+    #                      and "Mohon maaf, saya adalah PBG Assist..."
     SCENARIO_4_SIGNALS = (
         "mohon maaf",
         "maaf, sebagai",
