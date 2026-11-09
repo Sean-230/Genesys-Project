@@ -340,7 +340,7 @@ export default function AdminDashboard() {
             <Sparkles size={15} className="text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-zinc-100 leading-tight">PBG Assist — AI Coach</h1>
+            <h1 className="text-sm font-semibold text-zinc-100 leading-tight">chatbot-perijinan — AI Coach</h1>
             <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-medium">Knowledge Base Inbox</p>
           </div>
         </div>
