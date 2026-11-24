@@ -153,13 +153,18 @@ def save_pending_json(data):
     with open(PENDING_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-async def intercept_and_log(user_query: str, ai_response: str, golden_chunk_used: bool = False):
+async def intercept_and_log(
+    user_query: str,
+    ai_response: str,
+    golden_chunk_used: bool = False,
+    tool_used: bool = False,
+):
     """
     Background task that classifies the AI response into one of 4 scenarios
     and logs Scenario 2, 3, and 4 responses to Firestore for admin review.
     
-    If golden_chunk_used is True, this query was already guided by an admin-approved
-    instruction, so we skip logging to avoid evaluating the same case repeatedly.
+    If golden_chunk_used or tool_used is True, this query was already answered
+    by an admin instruction or a local database tool, so we skip logging.
 
     Classification strategy (order matters — most specific first):
       - Scenario 1 (RAG hit):  Response starts with the definitive RAG prefix.
@@ -170,8 +175,8 @@ async def intercept_and_log(user_query: str, ai_response: str, golden_chunk_used
       - Catch-all:             Anything that isn't Scenario 1 gets logged as
                                Scenario 3 (safe default — better to over-log).
     """
-    if golden_chunk_used:
-        logger.debug("Interceptor: Golden Chunk used — skipping log.")
+    if golden_chunk_used or tool_used:
+        logger.debug("Interceptor: Golden Chunk or DB tool used — skipping log.")
         return
 
     # ── Skip if Firestore already has an approved doc for a similar topic ─────
@@ -438,7 +443,7 @@ async def dispatch_tool_call(function_call: types.FunctionCall) -> types.Content
     logger.info(f"Tool result [{name}]: {result_str}")
 
     return types.Content(
-        role="tool",
+        role="user",
         parts=[
             types.Part(
                 function_response=types.FunctionResponse(
@@ -563,15 +568,19 @@ async def generate_stream(messages: list[Message]) -> AsyncGenerator[str, None]:
 
     # ── Agentic loop: keep iterating until no more tool calls ────────────────
     MAX_TOOL_ROUNDS = 5  # Safety limit to prevent infinite loops
+    FALLBACK_MODEL = "gemini-3.5-flash-lite"
+    active_model = GEMINI_MODEL
+    retried_503 = False
     final_response_text = ""
+    tool_used = False
     
     for round_num in range(MAX_TOOL_ROUNDS):
         try:
-            logger.info(f"Gemini generation round {round_num + 1}")
+            logger.info(f"Gemini generation round {round_num + 1} (model={active_model})")
 
             def _gen():
                 return client.models.generate_content(
-                    model=GEMINI_MODEL,
+                    model=active_model,
                     contents=contents,
                     config=gen_config,
                 )
@@ -584,6 +593,7 @@ async def generate_stream(messages: list[Message]) -> AsyncGenerator[str, None]:
                 # ── Function call part → dispatch and loop ───────────────────────
                 if part.function_call:
                     has_tool_call = True
+                    tool_used = True
                     # Append the model's function_call turn to history
                     contents.append(candidate.content)
                     # Execute the tool and append its result
@@ -599,12 +609,23 @@ async def generate_stream(messages: list[Message]) -> AsyncGenerator[str, None]:
 
             if not has_tool_call:
                 # No tool was called; generation is complete.
-                asyncio.create_task(intercept_and_log(last_user_question, final_response_text, bool(golden_chunks)))
+                asyncio.create_task(intercept_and_log(last_user_question, final_response_text, bool(golden_chunks), tool_used=tool_used))
                 return # Exit successfully
                 
         except Exception as exc:
             error_msg = str(exc)
-            logger.error(f"Gemini API error: {error_msg}")
+            logger.error(f"Gemini API error ({active_model}): {error_msg}")
+
+            # ── Fallback: if 503 UNAVAILABLE, switch to fallback model or retry once
+            if ("503" in error_msg or "UNAVAILABLE" in error_msg) and not retried_503:
+                retried_503 = True
+                if active_model != FALLBACK_MODEL:
+                    logger.info(f"Switching to fallback model {FALLBACK_MODEL} due to 503 UNAVAILABLE")
+                    active_model = FALLBACK_MODEL
+                else:
+                    logger.info("Retrying once after 2s backoff due to 503 UNAVAILABLE")
+                    await asyncio.sleep(2)
+                continue
 
             # ── Fallback: if 429 was caused by google_search quota, retry without it
             if ("429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg) and {"google_search": {}} in tools_list:
@@ -619,7 +640,7 @@ async def generate_stream(messages: list[Message]) -> AsyncGenerator[str, None]:
                 continue # Restart the loop without Google search!
                 
             # If it's another error, stop the stream and report it
-            if "API_KEY_INVALID" in error_msg or "INVALID_ARGUMENT" in error_msg or "401" in error_msg:
+            if "API_KEY_INVALID" in error_msg or "401" in error_msg:
                 msg = (
                     "❌ **Konfigurasi API Key tidak valid.**\n\n"
                     "Pastikan `GEMINI_API_KEY` di file `.env` adalah kunci Gemini yang benar "
@@ -633,6 +654,12 @@ async def generate_stream(messages: list[Message]) -> AsyncGenerator[str, None]:
                     "Anda telah melewati batas penggunaan API Gemini (rate limit/kuota harian). "
                     "Silakan tunggu beberapa saat dan coba lagi, atau tingkatkan tier API Anda "
                     "dengan menambahkan informasi billing di Google AI Studio."
+                )
+                yield f'0:{json.dumps(msg)}\n'
+            elif "503" in error_msg or "UNAVAILABLE" in error_msg:
+                msg = (
+                    "⚠️ **Server AI sedang mengalami lonjakan trafik sementara.**\n\n"
+                    "Mohon tunggu beberapa detik lalu kirim ulang pertanyaan Anda."
                 )
                 yield f'0:{json.dumps(msg)}\n'
             else:

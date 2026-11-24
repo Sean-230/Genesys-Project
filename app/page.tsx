@@ -22,10 +22,10 @@ import {
   Check,
   X,
   Trash2,
-  FileText,
-  Search,
-  Clock,
-  FolderOpen,
+  Wallet,
+  TrendingUp,
+  MapPin,
+  ChartColumn,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -351,10 +351,10 @@ function MessageBubble({
 /* ────────────────────────────────────────────────────────────────────────── */
 function EmptyState({ onSuggest }: { onSuggest: (q: string) => void }) {
   const suggestions = [
-    { text: "Apa syarat pengajuan PBG?", icon: FileText },
-    { text: "Bagaimana cek status permohonan?", icon: Search },
-    { text: "Berapa lama proses PBG?", icon: Clock },
-    { text: "Dokumen apa yang dibutuhkan?", icon: FolderOpen },
+    { text: "Anggaran", icon: Wallet },
+    { text: "Pendapatan", icon: TrendingUp },
+    { text: "Anggaran dan realisasinya per kecamatan", icon: MapPin },
+    { text: "Analisa kebutuhan untuk periode berikutnya", icon: ChartColumn },
   ];
 
   return (
@@ -365,12 +365,8 @@ function EmptyState({ onSuggest }: { onSuggest: (q: string) => void }) {
       </div>
       <div className="relative z-10">
         <h2 className="text-3xl font-extrabold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-500 drop-shadow-sm">
-          PBG Assist siap membantu
+          Apa yang ingin Anda ketahui tentang:
         </h2>
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", maxWidth: "380px" }}>
-          Tanyakan apa saja mengenai proses pengajuan Persetujuan Bangunan
-          Gedung, persyaratan dokumen, atau status permohonan Anda.
-        </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 w-full max-w-xl relative z-10">
         {suggestions.map(({ text, icon: Icon }) => (

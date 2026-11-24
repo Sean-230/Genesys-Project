@@ -17,6 +17,9 @@ safely returns an empty string so the chatbot still works without RAG context.
 import logging
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=True)
 
 logger = logging.getLogger(__name__)
 

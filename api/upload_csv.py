@@ -255,14 +255,8 @@ def process_csv(filepath: str, force_reupload: bool = False, start_idx: int = 0)
         logger.error("❌ Tidak ada data yang berhasil dibaca. Proses dihentikan.")
         return False
         
-    end_val = args.end_idx if args.end_idx else len(rows_data)
-    rows_data = rows_data[start_idx:end_val]
-    logger.info(f"⏭️  Memproses {len(rows_data)} baris (dari {start_idx} sampai {end_val})")
-    if args.end_idx is not None:
-        logger.info(f"⏭️  Hanya memproses sampai index {args.end_idx}")
-        # Karena kita sudah memotong start_idx, end_idx juga bergeser
-        # Lebih aman potong berdasarkan index global.
-        pass # Diubah di bawah
+    rows_data = rows_data[start_idx:]
+    logger.info("⏭️  Memproses %d baris (mulai dari index %d)", len(rows_data), start_idx)
 
     # Inisialisasi klien
     genai_client = google_genai.Client(api_key=GEMINI_API_KEY)

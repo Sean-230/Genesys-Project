@@ -17,8 +17,10 @@ HOW TO ADD A NEW TOOL
 ──────────────────────────────────────────────────────────────────────────────
 """
 
+import csv
 import json
 import os
+from functools import lru_cache
 from pathlib import Path
 from google.genai import types
 
@@ -166,12 +168,91 @@ def check_brangkas(registration_id: str) -> str:
         return json.dumps({"status": "error", "message": f"Error mengakses Google Drive API: {e}"})
 
 
+ANGGARAN_FILES = {
+    "per_pd": "ANGGARAN_PER_PD.csv",                  # realisasi per PD/kecamatan, s.d. Nopember 2026
+    "subkegiatan": "ANGGARAN_PER_SUBKEGIATAN.csv",    # realisasi per sub kegiatan
+    "ebudgeting_skpd": "EBUDGETING_PER_SKPD.csv",     # rencana anggaran (eBudgeting), per SKPD
+    "ebudgeting_sumber_dana": "EBUDGETING_PER_SUMBER_DANA.csv",
+    "ebudgeting_subkegiatan": "EBUDGETING_PER_SUBKEGIATAN.csv",
+    "ebudgeting_rincian": "EBUDGETING_RINCIAN.csv",   # per item belanja
+    "rka": "RKA_SKPD_2026.csv",                       # teks PDF RKA-SKPD
+}
+
+
+@lru_cache(maxsize=None)
+def _load_anggaran(sumber: str) -> list[dict]:
+    with open(os.path.join(_HERE, "data", ANGGARAN_FILES[sumber]), encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+
+def _num(v) -> float:
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _is_num(v) -> bool:
+    try:
+        float(v)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+def query_anggaran(sumber: str, kata_kunci: str = "", urutkan_berdasarkan: str = "",
+                   arah: str = "desc", maks: int = 15) -> str:
+    """
+    Mencari data anggaran di CSV lokal. Total dan urutan dihitung di kode (bukan oleh AI).
+
+    Args:
+        sumber: salah satu kunci di ANGGARAN_FILES.
+        kata_kunci: semua kata harus ada di baris (tidak peka huruf besar/kecil).
+        urutkan_berdasarkan: potongan nama kolom (mis. "alokasi", "persentase"), kosong = urutan file.
+        arah: "desc" (terbesar dulu) atau "asc".
+        maks: jumlah baris yang ditampilkan (maks 50).
+    """
+    if sumber not in ANGGARAN_FILES:
+        return json.dumps({"error": f"sumber tidak dikenal. Pilihan: {list(ANGGARAN_FILES)}"})
+    rows = _load_anggaran(sumber)
+    tokens = (kata_kunci or "").lower().split()
+    rows = [r for r in rows if all(t in " ".join(r.values()).lower() for t in tokens)]
+    if not rows:
+        return json.dumps({"sumber": sumber, "jumlah_baris_cocok": 0, "pesan": "Tidak ada data yang cocok."})
+
+    cols = list(rows[0])
+    sort_key = (urutkan_berdasarkan or "").replace("_", " ").strip().lower()
+    sort_col = next((c for c in cols if sort_key and sort_key in c.lower()), None)
+    if sort_col:
+        is_numeric = all(str(r.get(sort_col, "")).strip() == "" or _is_num(r.get(sort_col)) for r in rows)
+        if is_numeric:
+            rows = sorted(rows, key=lambda r: _num(r.get(sort_col)), reverse=(arah != "asc"))
+        else:
+            rows = sorted(rows, key=lambda r: str(r.get(sort_col, "")).lower(), reverse=(arah != "asc"))
+
+    # Jumlahkan kolom Rupiah/jumlah dari SEMUA baris cocok (kecuali Harga Satuan); persentase dihitung ulang.
+    totals = {
+        c: int(sum(_num(r[c]) for r in rows))
+        for c in cols
+        if (c.endswith("(Rp)") and not c.startswith("Harga")) or c.startswith("Jumlah")
+    }
+    pa, pr = "Total Alokasi (Rp)", "Total Progress Realisasi (Rp)"
+    if pa in totals and pr in totals and totals[pa]:
+        totals["Persentase Progress Realisasi (%)"] = round(totals[pr] / totals[pa] * 100, 2)
+
+    n = max(1, min(int(15 if maks is None else maks), 50))
+    shown = [{k: (v[:700] if k == "Teks" else v) for k, v in r.items() if v} for r in rows[:n]]
+    return json.dumps({"sumber": sumber, "jumlah_baris_cocok": len(rows), "ditampilkan": len(shown),
+                       "total_semua_baris_cocok": totals, "baris": shown}, ensure_ascii=False)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Tool Registry — maps function name → callable for dispatcher in main.py
 # ──────────────────────────────────────────────────────────────────────────────
 TOOL_REGISTRY: dict[str, callable] = {
     "check_pbg_status": check_pbg_status,
     "check_brangkas": check_brangkas,
+    "query_anggaran": query_anggaran,
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -218,12 +299,37 @@ TOOL_DECLARATIONS = types.Tool(
                 },
                 required=["registration_id"],
             ),
-        )
+        ),
+        types.FunctionDeclaration(
+            name="query_anggaran",
+            description=(
+                "Mencari dan menjumlahkan data anggaran Pemkot Surabaya dari tabel lokal. WAJIB dipakai untuk "
+                "setiap pertanyaan angka anggaran, realisasi, penyerapan, per kecamatan, per Perangkat Daerah, "
+                "sub kegiatan, atau sumber dana. Total dan urutan sudah dihitung oleh tool; jangan menghitung sendiri. "
+                "Sumber: per_pd (realisasi per PD & 31 kecamatan s.d. Nopember 2026), subkegiatan (realisasi per sub "
+                "kegiatan), ebudgeting_skpd / ebudgeting_sumber_dana / ebudgeting_subkegiatan / ebudgeting_rincian "
+                "(rencana anggaran eBudgeting, saat ini hanya Dinas Pendidikan), rka (teks dokumen RKA-SKPD)."
+            ),
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "sumber": types.Schema(type=types.Type.STRING, enum=list(ANGGARAN_FILES)),
+                    "kata_kunci": types.Schema(
+                        type=types.Type.STRING,
+                        description="Kata yang harus ada di baris, mis. 'Tambaksari' atau 'kecamatan' atau 'stunting'. Kosong = semua.",
+                    ),
+                    "urutkan_berdasarkan": types.Schema(
+                        type=types.Type.STRING,
+                        description="Potongan nama kolom untuk mengurutkan, mis. 'alokasi', 'persentase'. Kosong = urutan file.",
+                    ),
+                    "arah": types.Schema(type=types.Type.STRING, enum=["desc", "asc"]),
+                    "maks": types.Schema(type=types.Type.INTEGER, description="Jumlah baris ditampilkan, maks 50."),
+                },
+                required=["sumber"],
+            ),
+        ),
     ]
 )
-
-import csv
-import json
 
 def search_local_csv(query: str) -> str:
     """
