@@ -26,6 +26,7 @@ import {
   TrendingUp,
   MapPin,
   ChartColumn,
+  ChevronRight,
 } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -350,12 +351,50 @@ function MessageBubble({
 /*  Empty state                                                                */
 /* ────────────────────────────────────────────────────────────────────────── */
 function EmptyState({ onSuggest }: { onSuggest: (q: string) => void }) {
-  const suggestions = [
-    { text: "Anggaran", icon: Wallet },
-    { text: "Pendapatan", icon: TrendingUp },
-    { text: "Anggaran dan realisasinya per kecamatan", icon: MapPin },
-    { text: "Analisa kebutuhan untuk periode berikutnya", icon: ChartColumn },
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const categories = [
+    {
+      text: "Anggaran",
+      icon: Wallet,
+      presets: [
+        "Berapa total alokasi dan realisasi anggaran seluruh Pemkot Surabaya?",
+        "Sebutkan 5 Perangkat Daerah dengan alokasi anggaran terbesar.",
+        "Berapa total rencana anggaran Dinas Pendidikan di eBudgeting dan 3 sumber dana terbesarnya?",
+        "Apa saja sub kegiatan dengan anggaran terbesar di eBudgeting Dinas Pendidikan?",
+      ],
+    },
+    {
+      text: "Pendapatan",
+      icon: TrendingUp,
+      presets: [
+        "Apakah data rincian pendapatan daerah Pemkot Surabaya tersedia di sistem?",
+        "Apa saja sumber dana (APBD, DAK, BOS) yang tercatat di eBudgeting Dinas Pendidikan?",
+        "Berapa perbandingan porsi dana APBD dibanding DAK/BOS di eBudgeting?",
+      ],
+    },
+    {
+      text: "Anggaran dan realisasinya per kecamatan",
+      icon: MapPin,
+      presets: [
+        "Berapa total alokasi dan realisasi seluruh 31 kecamatan di Surabaya?",
+        "Sebutkan 5 kecamatan dengan persentase penyerapan tertinggi.",
+        "Sebutkan 5 kecamatan dengan persentase penyerapan terendah.",
+        "Berapa total alokasi dan realisasi anggaran Kecamatan Tambaksari?",
+      ],
+    },
+    {
+      text: "Analisa kebutuhan untuk periode berikutnya",
+      icon: ChartColumn,
+      presets: [
+        "Sebutkan 3 kecamatan dengan persentase penyerapan terendah dan analisa singkat kebutuhan periode berikutnya.",
+        "Perangkat Daerah mana saja yang serapannya masih di bawah 60% dan apa rekomendasinya?",
+        "Bagaimana perbandingan Progress Realisasi vs SP2D secara keseluruhan?",
+      ],
+    },
   ];
+
+  const activeCategory = categories.find((c) => c.text === selectedCategory);
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-5 px-6 text-center relative">
@@ -368,27 +407,81 @@ function EmptyState({ onSuggest }: { onSuggest: (q: string) => void }) {
           Apa yang ingin Anda ketahui tentang:
         </h2>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 w-full max-w-xl relative z-10">
-        {suggestions.map(({ text, icon: Icon }) => (
-          <button
-            key={text}
-            onClick={() => onSuggest(text)}
-            className="flex items-center gap-3 text-left px-4 py-3.5 rounded-2xl text-sm transition-all duration-300 hover:-translate-y-1 backdrop-blur-md bg-white/5 border border-white/10 hover:border-purple-400/50 hover:bg-white/10 hover:shadow-[0_0_15px_rgba(192,132,252,0.15)] group"
-            style={{ color: "var(--text-secondary)" }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)";
-            }}
-          >
-            <div className="flex-shrink-0 p-2 rounded-xl bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 group-hover:scale-110 transition-all">
-              <Icon size={18} />
-            </div>
-            <span className="font-medium leading-tight">{text}</span>
-          </button>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 w-full max-w-xl relative z-10">
+        {categories.map(({ text, icon: Icon }) => {
+          const isActive = selectedCategory === text;
+          return (
+            <button
+              key={text}
+              onClick={() => setSelectedCategory(isActive ? null : text)}
+              className={`flex items-center justify-between gap-3 text-left px-4 py-3.5 rounded-2xl text-sm transition-all duration-300 hover:-translate-y-0.5 backdrop-blur-md border group ${
+                isActive
+                  ? "bg-purple-500/15 border-purple-400/70 shadow-[0_0_18px_rgba(192,132,252,0.22)]"
+                  : "bg-white/5 border-white/10 hover:border-purple-400/50 hover:bg-white/10 hover:shadow-[0_0_15px_rgba(192,132,252,0.15)]"
+              }`}
+              style={{ color: isActive ? "var(--text-primary)" : "var(--text-secondary)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex-shrink-0 p-2 rounded-xl transition-all ${
+                    isActive
+                      ? "bg-purple-500/25 text-purple-300"
+                      : "bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 group-hover:scale-110"
+                  }`}
+                >
+                  <Icon size={18} />
+                </div>
+                <span className="font-medium leading-tight">{text}</span>
+              </div>
+              <ChevronRight
+                size={16}
+                className={`flex-shrink-0 text-purple-400/70 transition-transform duration-200 ${
+                  isActive ? "rotate-90 text-purple-300" : "group-hover:translate-x-0.5"
+                }`}
+              />
+            </button>
+          );
+        })}
       </div>
+
+      {activeCategory && (
+        <div className="w-full max-w-xl relative z-10 mt-1 rounded-2xl border border-purple-400/30 bg-white/5 backdrop-blur-md p-3 text-left message-enter">
+          <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-white/10">
+            <span className="text-xs font-semibold uppercase tracking-wider text-purple-300">
+              Pilih pertanyaan — {activeCategory.text}
+            </span>
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className="text-xs px-2 py-0.5 rounded-md hover:bg-white/10 transition-colors"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Tutup
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {activeCategory.presets.map((preset) => (
+              <button
+                key={preset}
+                onClick={() => onSuggest(preset)}
+                className="flex items-center justify-between gap-3 w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 hover:bg-purple-500/15 group"
+                style={{ color: "var(--text-secondary)" }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)";
+                }}
+              >
+                <span className="leading-snug">{preset}</span>
+                <Pencil
+                  size={14}
+                  className="flex-shrink-0 opacity-40 group-hover:opacity-100 group-hover:text-purple-300 transition-all"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -401,11 +494,15 @@ function useBackendHealth() {
 
   useEffect(() => {
     const checkHealth = async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
       try {
-        const res = await fetch("/api/health", { method: "GET" });
+        const res = await fetch("/api/health", { method: "GET", signal: controller.signal });
         setOnline(res.ok);
       } catch {
         setOnline(false);
+      } finally {
+        clearTimeout(timeout);
       }
     };
 
@@ -1088,7 +1185,20 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-4xl mx-auto space-y-5">
           {!mounted || messages.length === 0 ? (
-            <EmptyState onSuggest={(q) => submitMessage(q)} />
+            <EmptyState
+              onSuggest={(q) => {
+                setInputValue(q);
+                requestAnimationFrame(() => {
+                  const el = textareaRef.current;
+                  if (el) {
+                    el.focus();
+                    el.style.height = "auto";
+                    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+                    el.setSelectionRange(q.length, q.length);
+                  }
+                });
+              }}
+            />
           ) : (
             <>
               {messages.map((m) => {
@@ -1119,7 +1229,7 @@ export default function ChatPage() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Tanyakan tentang PBG… (Enter untuk kirim, Shift+Enter untuk baris baru)"
+              placeholder="Tanyakan tentang PBG atau anggaran Pemkot Surabaya… (Enter untuk kirim, Shift+Enter untuk baris baru)"
               rows={1}
               disabled={isLoading}
               className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed p-0 m-0 py-1.5"

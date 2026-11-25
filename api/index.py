@@ -72,37 +72,35 @@ app.add_middleware(
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Firebase Initialization
+# Firebase Initialization (lazy — keeps /api/health & Vercel cold starts fast)
 # ──────────────────────────────────────────────────────────────────────────────
 _default_cred_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
 FIREBASE_CREDENTIALS_PATH = os.environ.get("FIREBASE_CREDENTIALS_PATH", _default_cred_path)
-FIREBASE_SERVICE_ACCOUNT_JSON = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
+FIREBASE_SERVICE_ACCOUNT_JSON = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON") or os.environ.get("GOOGLE_CREDENTIALS_JSON")
 
-try:
-    if not firebase_admin._apps:
-        if FIREBASE_SERVICE_ACCOUNT_JSON:
-            import json
-            cred_dict = json.loads(FIREBASE_SERVICE_ACCOUNT_JSON)
-            cred = credentials.Certificate(cred_dict)
-        else:
-            cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
-        firebase_admin.initialize_app(cred)
-    db = firestore.client()
-except Exception as e:
-    logger.error(f"🔴 Firebase Initialization Failed: {e}", exc_info=True)
-    db = None
+_db = None
+_db_initialized = False
 
-@app.on_event("startup")
-async def startup_event():
-    if db:
-        def test_connection():
-            try:
-                db.collection("pending_evaluations").limit(1).get()
-                logger.info("🟢 Firebase Firestore Connected Successfully")
-            except Exception as e:
-                logger.error(f"🔴 Firebase connection test failed: {e}")
-        
-        asyncio.create_task(asyncio.to_thread(test_connection))
+def get_db():
+    """Lazily initializes Firestore only when first needed, so /api/health is instant."""
+    global _db, _db_initialized
+    if _db_initialized:
+        return _db
+    _db_initialized = True
+    try:
+        if not firebase_admin._apps:
+            if FIREBASE_SERVICE_ACCOUNT_JSON:
+                cred_dict = json.loads(FIREBASE_SERVICE_ACCOUNT_JSON)
+                cred = credentials.Certificate(cred_dict)
+            else:
+                cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+            firebase_admin.initialize_app(cred)
+        _db = firestore.client()
+        logger.info("🟢 Firebase Firestore Initialized")
+    except Exception as e:
+        logger.error(f"🔴 Firebase Initialization Failed: {e}", exc_info=True)
+        _db = None
+    return _db
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Request / Response Models
@@ -182,6 +180,7 @@ async def intercept_and_log(
     # ── Skip if Firestore already has an approved doc for a similar topic ─────
     # This prevents re-logging prompts whose topics have already been approved,
     # which was causing "doubled" entries in the admin panel.
+    db = get_db()
     if db:
         try:
             def check_already_approved():
@@ -697,6 +696,7 @@ async def get_evaluations(status: str = "pending"):
     """Fetch evaluations from Firestore by status."""
     try:
         def fetch():
+            db = get_db()
             if not db: return []
             
             def process_docs(docs):
@@ -731,6 +731,7 @@ async def delete_evaluation(doc_id: str):
     try:
         def do_delete():
             success = False
+            db = get_db()
             if db:
                 db.collection("pending_evaluations").document(doc_id).delete()
                 success = True
@@ -765,6 +766,7 @@ async def evaluate_pending(req: EvaluateRequest):
 
     try:
         def update():
+            db = get_db()
             if not db:
                 return None
             doc_ref = db.collection("pending_evaluations").document(req.doc_id)
